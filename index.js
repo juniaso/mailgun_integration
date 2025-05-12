@@ -1,15 +1,15 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const MailgunAdapter = require('parse-server-mailgun');
+const formData = require('form-data');
+const Mailgun = require('mailgun.js');
 
 const app = express();
 app.use(bodyParser.json());
 
-const mailgunAdapter = new MailgunAdapter({
-  fromAddress: process.env.FROM_ADDRESS,
-  domain: process.env.MAILGUN_DOMAIN,
-  apiKey: process.env.MAILGUN_API_KEY,
-  callback: (msg) => console.log('Email sent:', msg),
+const mailgun = new Mailgun(formData);
+const mg = mailgun.client({
+  username: 'api',
+  key: process.env.MAILGUN_API_KEY,
 });
 
 app.post('/send-email', async (req, res) => {
@@ -20,10 +20,17 @@ app.post('/send-email', async (req, res) => {
   }
 
   try {
-    await mailgunAdapter.sendMail({ to, subject, text });
+    const response = await mg.messages.create(process.env.MAILGUN_DOMAIN, {
+      from: process.env.FROM_ADDRESS,
+      to,
+      subject,
+      text,
+    });
+
+    console.log('Email sent:', response);
     res.status(200).send('Email sent');
-  } catch (err) {
-    console.error('Error sending email:', err);
+  } catch (error) {
+    console.error('Mailgun error:', error);
     res.status(500).send('Failed to send email');
   }
 });
